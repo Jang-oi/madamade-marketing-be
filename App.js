@@ -28,6 +28,7 @@ const chromeOpen = async (url) => {
     let chromeOptions = new chrome.Options();
     chromeOptions.addArguments('--blink-settings=imagesEnabled=false');
     chromeOptions.addArguments('--headless');
+    chromeOptions.addArguments('--no-sandbox');
     chromeOptions.addArguments("--disable-popup-blocking");
     chromeOptions.addArguments("--disable-gpu");
     chromeOptions.addArguments("--disable-default-apps");
@@ -41,7 +42,7 @@ const chromeOpen = async (url) => {
     return driver;
 }
 
-app.get('/keywordstool', function (req, res) {
+app.get('/mada/keywordstool', function (req, res) {
     getKeywords(req.query.searchkeyword).then((response) => {
         res.send(response);
     });
@@ -82,8 +83,8 @@ const getKeywords = async (searchKeyword) => {
 }
 
 
-app.post('/getReview', (req, res) => {
-    crawling(req.body.url).then((response) => {
+app.post('/mada/getReview', (req, res) => {
+    getReview(req.body.url).then((response) => {
         res.send(response);
     });
 });
@@ -95,13 +96,12 @@ app.post('/getReview', (req, res) => {
  * @param originProductNo
  * @returns {Promise<*[]>}
  */
-const getReview = async (reviewCount, merchantNo, originProductNo) => {
+const getReviewArr = async (reviewCount, merchantNo, originProductNo) => {
 
-    let totalPage = Math.ceil(reviewCount.replace(/,/g, "") / 30);
-    if (totalPage > 100) totalPage = 100;
+    if (reviewCount > 100) reviewCount = 100;
     const returnArr = [];
-    for (let i = 1; i <= totalPage; i++) {
-        const url = `https://smartstore.naver.com/i/v1/reviews/paged-reviews?page=${i}&pageSize=30&merchantNo=${merchantNo}&originProductNo=${originProductNo}&sortType=REVIEW_RANKING`
+    for (let i = 1; i <= reviewCount; i++) {
+        const url = `https://smartstore.naver.com/i/v1/reviews/paged-reviews`
         await axios.post(url, {
             page           : i,
             pageSize       : 30,
@@ -112,10 +112,22 @@ const getReview = async (reviewCount, merchantNo, originProductNo) => {
             const contents = response.data.contents;
             for (let j = 0; j < contents.length; j++) {
                 if (!contents[j].productOptionContent) continue;
-                returnArr.push({productOptionContent: contents[j].productOptionContent});
+                if (!returnArr.find((object) => {
+                    // 찾으면 cnt 증가
+                    if (object.productOptionContent === contents[j].productOptionContent) {
+                        object.cnt++;
+                        return true;
+                    }
+                })) {
+                    // 못찾았으면 cnt 1 로하고 해당 데이터 returnArr에 푸쉬 
+                    contents[j].cnt = 1;
+                    returnArr.push({productOptionContent: contents[j].productOptionContent, cnt : contents[j].cnt});
+                }
             }
         });
     }
+    returnArr.sort((a, b) => b.cnt - a.cnt);
+
     return returnArr;
 }
 
@@ -124,107 +136,45 @@ const getReview = async (reviewCount, merchantNo, originProductNo) => {
  * @param url
  * @returns {Promise<*[]>}
  */
-const crawling = async (url) => {
-
-    const resultArr = [];
-
+const getReview = async (url) => {
     const driver = await chromeOpen(url);
-    // 로딩 제일 오래걸리는게 QNA 로 확인 되서 넣음
-    await driver.wait(until.elementLocated(By.css('#QNA')));
-
     // __PRELOADED_STATE__ 를 window 객체에 넣고 그 안에 상품에 대한 정보를 담고 있음.
     const originProductNo = await driver.executeScript(`return __PRELOADED_STATE__.product.A.productNo`);
     const merchantNo = await driver.executeScript(`return __PRELOADED_STATE__.product.A.channel.naverPaySellerNo`);
+    const reviewCount = await driver.executeScript(`return __PRELOADED_STATE__.product.A.reviewAmount.totalReviewCount`);
 
-    const reviewCount = await driver.findElement(By.xpath('//*[@id="content"]/div/div[2]/div[1]/div[2]/div[1]/a/strong')).getText();
     await driver.quit();
-    const reviewArr = await getReview(reviewCount, merchantNo, originProductNo);
-    reviewArr.map(item => {
-        if (resultArr.find(object => {
-            if (object.productOptionContent === item.productOptionContent) {
-                object.cnt++;
-                return true;
-            } else {
-                return false;
-            }
-        })) {
-        } else {
-            item.cnt = 1;
-            resultArr.push(item);
-        }
-    })
-    resultArr.sort((a, b) => b.cnt - a.cnt);
-    return resultArr;
+    return await getReviewArr(Math.ceil(reviewCount / 30), merchantNo, originProductNo);
 }
 
-app.post('/getProductDate', (req, res) => {
+/**
+ * 등록일자 가져옴.
+ */
+app.post('/mada/getProductDate', (req, res) => {
     getProductDate(req.body.url).then((response) => {
         res.send(response);
     });
 });
 
-const getProductImageAndId = async (bestProductObj) => {
-    const resultObj = {};
-    /*    resultObj.DAILY = bestProductObj.DAILY.map((item) => {
-            return {thumbnail: item.representativeImageUrl, id: item.id}
-        });
-
-        resultObj.WEEKLY = bestProductObj.WEEKLY.map((item) => {
-            return {thumbnail: item.representativeImageUrl, id: item.id}
-        });*/
-
-    resultObj.MONTHLY = bestProductObj.MONTHLY.map((item) => {
-        return {
-            thumbnail   : item.representativeImageUrl,
-            productId   : item.id,
-            reviewAmount: item.reviewAmount,
-            saleAmount  : item.saleAmount
-        }
-    });
-
-    return resultObj;
-}
-
-const getProductRegDate = async (driver, resultObj, url) => {
-    const urlArray = url.split('/');
-    const storeInfo = urlArray[urlArray.length - 2];
-
-    const resultFor = async (array) => {
-        for (let i = 0; i < array.length; i++) {
-            const page = `window.open("https://smartstore.naver.com/${storeInfo}/products/${array[i].productId}");`
-            await driver.executeScript(page);
-            const parent = await driver.getWindowHandle();
-            const windows = await driver.getAllWindowHandles();
-            await driver.switchTo().window(windows[1]);
-            await driver.wait(until.elementLocated(By.css('#INTRODUCE')));
-            array[i].regDate = new Date(await driver.executeScript(`return __PRELOADED_STATE__.product.A.regDate`)).toLocaleDateString();
-            array[i].delivery = await driver.findElement(By.xpath('//*[@id="INTRODUCE"]/div/div[2]/div[2]/div[2]/ul')).getText();
-            await driver.close();
-            await driver.switchTo().window(parent);
-        }
-    }
-
-    // await resultFor(resultObj.DAILY);
-    // await resultFor(resultObj.WEEKLY);
-    await resultFor(resultObj.MONTHLY);
-}
-
-const getProductDelivery = () => {
-
-}
-
 const getProductDate = async (url) => {
     const driver = await chromeOpen(url);
 
-    await driver.wait(until.elementLocated(By.css('#content')));
-
-    // __PRELOADED_STATE__ 를 window 객체에 넣고 그 안에 상품에 대한 정보를 담고 있음.
-    const bestProductObj = await driver.executeScript(`return __PRELOADED_STATE__.bestProducts.A.bestProducts`);
-
-    const resultObj = await getProductImageAndId(bestProductObj);
-
-    await getProductRegDate(driver, resultObj, url);
+    // 상품에 대한 정보 담겨있음
+    const productObj = await driver.executeScript(`return __PRELOADED_STATE__.product.A`);
+    const resultObj = await getProductObj(productObj);
 
     await driver.quit();
     return resultObj;
 }
+
+const getProductObj = async (productObj) => {
+    return {
+        productId   : productObj.id,
+        reviewAmount: productObj.reviewAmount,
+        saleAmount  : productObj.saleAmount,
+        thumbnail   : productObj.representImage.url,
+        regDate     : new Date(productObj.regDate).toLocaleDateString(),
+        delivery    : productObj.productDeliveryLeadTimes || [],
+        images      : productObj.productImages || [],
+    }
+};
