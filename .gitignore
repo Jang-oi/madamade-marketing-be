@@ -1,0 +1,6 @@
+# Project exclude paths
+/node_modules/
+App.zip
+chromedriver.exe
+run.bat
+.idea
