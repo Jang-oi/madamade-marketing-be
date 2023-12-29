@@ -46,17 +46,17 @@ const chromeOpen = async (url) => {
     return driver;
 }
 
-app.post('/mada/getKeyword', async function (req, res) {
+app.post('/mada/api/v1/getkeyword', async function (req, res) {
     getKeywords(req.body.url).then((response) => {
         res.send({
             returnCode: 1,
             data      : response,
             returnMsg : '키워드 테스트'
         });
-    }).catch((error) => {
+    }).catch(() => {
         res.send({
             returnCode: 0,
-            data      : error,
+            data      : [],
             returnMsg : '키워드 테스트'
         });
     });
@@ -129,11 +129,17 @@ const getKeywords = async (url) => {
 /**
  * 등록일자 가져옴.
  */
-app.post('/mada/getProductDate', (req, res) => {
+app.post('/mada/api/v1/getproductdate', (req, res) => {
     getProductDate(req.body.url).then((response) => {
         res.send({
             returnCode: 1,
             data      : response,
+            returnMsg : '등록일자 테스트'
+        });
+    }).catch(() => {
+        res.send({
+            returnCode: 0,
+            data      : [],
             returnMsg : '등록일자 테스트'
         });
     });
@@ -147,7 +153,7 @@ const getProductDate = async (url) => {
     if (!productObj.id) {
         await driver.quit();
         resultObj = {
-            test : '상품이 존재하지 않습니다.'
+            test: '상품이 존재하지 않습니다.'
         }
         return resultObj;
     }
@@ -168,7 +174,7 @@ const getProductObj = async (productObj) => {
     }
 };
 
-app.post('/mada/getReview', (req, res) => {
+app.post('/mada/api/v1/getreview', (req, res) => {
     getReview(req.body.url).then((response) => {
         res.send({
             returnCode: 1,
@@ -178,7 +184,7 @@ app.post('/mada/getReview', (req, res) => {
     }).catch((error) => {
         res.send({
             returnCode: 0,
-            data      : error,
+            data      : [],
             returnMsg : '리뷰 테스트'
         });
     });
@@ -230,7 +236,6 @@ const getReviewArr = async (reviewCount, merchantNo, originProductNo) => {
         });
     }
     returnArr.sort((a, b) => b.cnt - a.cnt);
-
     return returnArr;
 }
 
@@ -245,7 +250,7 @@ const getReview = async (url) => {
     const originProductNo = await driver.executeScript(`return __PRELOADED_STATE__.product.A.productNo`);
     const merchantNo = await driver.executeScript(`return __PRELOADED_STATE__.product.A.channel.naverPaySellerNo`);
     const reviewCount = await driver.executeScript(`return __PRELOADED_STATE__.product.A.reviewAmount.totalReviewCount`);
-
     await driver.quit();
+
     return await getReviewArr(Math.ceil(reviewCount / 30), merchantNo, originProductNo);
 }
