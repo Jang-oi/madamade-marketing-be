@@ -5,7 +5,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 // 크롤링 
-const {Builder} = require('selenium-webdriver');
+const {Builder, Key, By, until} = require('selenium-webdriver');
 const chrome = require('selenium-webdriver/chrome');
 
 // 키워드
@@ -15,9 +15,10 @@ const secretKey = "AQAAAAATi7EZ/Mm+/2G0LYQwK+x3+bCPHlYe3Bme9Ma/tuVjwQ==";
 const customerId = '1128231';
 
 // 검색 API
-const clientId = '2Iz2geTyL3MntmUyYLdT';
-const clientSecret = '34k2jAsDQu';
+const clientId = 'XvWnquFEu1tD8y8OVTae';
+const clientSecret = 'BsaLLa2qSU';
 
+const BASE_URL = '/mada/api/v1';
 app.listen(3001, () => {
     console.log('서버 시작');
 });
@@ -30,13 +31,17 @@ app.listen(3001, () => {
 const chromeOpen = async (url) => {
 
     let chromeOptions = new chrome.Options();
-    chromeOptions.addArguments('--blink-settings=imagesEnabled=false');
-    chromeOptions.addArguments('--headless');
-    chromeOptions.addArguments('--no-sandbox');
-    chromeOptions.addArguments("--disable-popup-blocking");
-    chromeOptions.addArguments("--disable-gpu");
-    chromeOptions.addArguments("--disable-default-apps");
-    chromeOptions.addArguments("--disable-infobars");
+    chromeOptions.addArguments("--window-size=1920,1080")
+    chromeOptions.addArguments("--disable-extensions")
+    chromeOptions.addArguments("--proxy-server='direct://'")
+    chromeOptions.addArguments("--proxy-bypass-list=*")
+    chromeOptions.addArguments("--start-maximized")
+    chromeOptions.addArguments('--headless')
+    chromeOptions.addArguments('--disable-gpu')
+    chromeOptions.addArguments('--disable-dev-shm-usage')
+    chromeOptions.addArguments('--no-sandbox')
+    chromeOptions.addArguments('--ignore-certificate-errors')
+
 
     let driver = await new Builder().forBrowser('chrome')
         .setChromeOptions(chromeOptions)
@@ -45,6 +50,76 @@ const chromeOpen = async (url) => {
 
     return driver;
 }
+
+app.post(`${BASE_URL}/getShoppingList`, async (req, res) => {
+
+    getShoppingList(req.body)
+        .then(response =>
+            res.send({response}))
+        .catch(err => {
+            res.send({
+                returnCode: 0,
+                data      : [],
+                returnMsg : err
+            })
+        });
+});
+
+const getShoppingList = async ({searchValue, pagingIndex}) => {
+
+    const encodeValue = encodeURI(searchValue);
+    const searchUrl = `https://search.shopping.naver.com/search/all?adQuery=${encodeValue}&exagency=true&exrental=true&exused=true&frm=NVSCTAB&npayType=2&origQuery=${encodeValue}&pagingIndex=${pagingIndex}&pagingSize=20&productSet=checkout&query=${encodeValue}&sort=review_rel&timestamp=&viewType=list`;
+    const driver = await chromeOpen(searchUrl);
+    const responseData = {
+        returnCode: 0,
+        data      : [],
+        returnMsg : ''
+    };
+    try {
+        // 클래스 존재 여부 확인
+        const isNoResultClassExist = await driver.findElements(By.className('noResultWithBestResults_no_keyword___Jhtn'));
+
+        if (isNoResultClassExist.length > 0) {
+            responseData.returnCode = -1;
+            responseData.returnMsg = '검색 결과가 없습니다.'
+            return responseData;
+        }
+
+        // __NEXT_DATA__ 스크립트 태그 가져오기
+        const nextDataScript = await driver.findElement(By.id('__NEXT_DATA__'));
+        // 스크립트 태그 내용 가져오기
+        const nextDataContent = await nextDataScript.getAttribute('textContent');
+
+        if (nextDataContent) {
+            const dataArray = JSON.parse(nextDataContent)?.props?.pageProps?.initialState?.products.list;
+            for (let i = 0; i < dataArray.length; i++) responseData.data.push(dataArray[i].item);
+        }
+        let href, thumbnailImageSrc, title, price, deliveryPrice,
+            reviewCount, purchaseCount, registrationDate, zzimCount
+
+        // responseData.data.push({
+        //     href,
+        //     thumbnailImageSrc,
+        //     title,
+        //     price,
+        //     deliveryPrice   : deliveryPrice.replace("배송비\n", ""),
+        //     reviewCount,
+        //     purchaseCount,
+        //     registrationDate: registrationDate.replace("등록일 ", ""),
+        //     zzimCount
+        // });
+        responseData.returnMsg = '정상적으로 조회 되었습니다.';
+        // }
+        return responseData;
+    } catch (e) {
+        responseData.returnCode = -1;
+        responseData.returnMsg = e.message;
+        return responseData;
+    } finally {
+        await driver.quit();
+    }
+}
+
 
 app.post('/mada/api/v1/getkeyword', async function (req, res) {
     getKeywords(req.body.url).then((response) => {
@@ -129,7 +204,7 @@ const getKeywords = async (url) => {
 /**
  * 등록일자 가져옴.
  */
-app.post('/mada/api/v1/getproductdate', (req, res) => {
+/*app.post('/mada/api/v1/getproductdate', (req, res) => {
     getProductDate(req.body.url).then((response) => {
         res.send({
             returnCode: 1,
@@ -160,9 +235,9 @@ const getProductDate = async (url) => {
     resultObj = await getProductObj(productObj);
     await driver.quit();
     return resultObj;
-}
+}*/
 
-const getProductObj = async (productObj) => {
+/*const getProductObj = async (productObj) => {
     return {
         productId   : productObj.id,
         reviewAmount: productObj.reviewAmount,
@@ -172,7 +247,7 @@ const getProductObj = async (productObj) => {
         delivery    : productObj.productDeliveryLeadTimes || [],
         images      : productObj.productImages || [],
     }
-};
+};*/
 
 app.post('/mada/api/v1/getreview', (req, res) => {
     getReview(req.body.url).then((response) => {
@@ -181,7 +256,7 @@ app.post('/mada/api/v1/getreview', (req, res) => {
             data      : response,
             returnMsg : '리뷰 테스트'
         });
-    }).catch((error) => {
+    }).catch(() => {
         res.send({
             returnCode: 0,
             data      : [],
@@ -198,45 +273,42 @@ app.post('/mada/api/v1/getreview', (req, res) => {
  * @returns {Promise<*[]>}
  */
 const getReviewArr = async (reviewCount, merchantNo, originProductNo) => {
+    if (reviewCount > 200) reviewCount = 199;
+    const returnArrMap = new Map();
 
-    if (reviewCount > 100) reviewCount = 33;
-    const returnArr = [];
-    for (let i = 1; i <= reviewCount; i++) {
-        const url = `https://smartstore.naver.com/i/v1/reviews/paged-reviews`
+    const requests = Array.from({length: reviewCount}, (_, i) => i + 1).map(async (i) => {
+        const url = `https://smartstore.naver.com/i/v1/reviews/paged-reviews`;
 
-        // sortType 저거로 바꿔야 최신순으로 나옴
-        // 3000개로 서버 올려보고 속도 영 안나오면 1000개로 ㄱㄱ
-        await axios.post(url, {
+        const response = await axios.post(url, {
             page           : i,
             pageSize       : 30,
             merchantNo     : merchantNo,
             originProductNo: originProductNo,
             sortType       : 'REVIEW_CREATE_DATE_DESC'
-        }).then((response) => {
-            const contents = response.data.contents;
-            for (let j = 0; j < contents.length; j++) {
-                if (!contents[j].productOptionContent) continue;
-                if (!returnArr.find((object) => {
-                    // 찾으면 cnt 증가
-                    if (object.productOptionContent === contents[j].productOptionContent) {
-                        object.cnt++;
-                        object.reviewScore += Number(contents[j].reviewScore);
-                        return true;
-                    }
-                })) {
-                    // 못찾았으면 cnt 1 로하고 해당 데이터 returnArr에 푸쉬
-                    contents[j].cnt = 1;
-                    returnArr.push({
-                        productOptionContent: contents[j].productOptionContent,
-                        cnt                 : Number(contents[j].cnt),
-                        reviewScore         : Number(contents[j].reviewScore)
-                    });
-                }
-            }
         });
-    }
-    returnArr.sort((a, b) => b.cnt - a.cnt);
-    return returnArr;
+
+        const contents = response.data.contents;
+
+        for (let j = 0; j < contents.length; j++) {
+            if (!contents[j].productOptionContent) continue;
+
+            const key = contents[j].productOptionContent;
+            if (returnArrMap.has(key)) {
+                const item = returnArrMap.get(key);
+                item.cnt++;
+                item.reviewScore += Number(contents[j].reviewScore);
+            } else {
+                returnArrMap.set(key, {
+                    productOptionContent: key,
+                    cnt                 : 1,
+                    reviewScore         : Number(contents[j].reviewScore)
+                });
+            }
+        }
+    });
+
+    await Promise.all(requests);
+    return Array.from(returnArrMap.values()).sort((a, b) => b.cnt - a.cnt);
 }
 
 /**
@@ -248,6 +320,7 @@ const getReview = async (url) => {
     const driver = await chromeOpen(url);
     // __PRELOADED_STATE__ 를 window 객체에 넣고 그 안에 상품에 대한 정보를 담고 있음.
     const originProductNo = await driver.executeScript(`return __PRELOADED_STATE__.product.A.productNo`);
+    // originalMallProductId
     const merchantNo = await driver.executeScript(`return __PRELOADED_STATE__.product.A.channel.naverPaySellerNo`);
     const reviewCount = await driver.executeScript(`return __PRELOADED_STATE__.product.A.reviewAmount.totalReviewCount`);
     await driver.quit();
