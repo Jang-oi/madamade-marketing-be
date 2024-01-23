@@ -124,6 +124,8 @@ const getKeywordShoppingRate = async (searchValue, productTitle) => {
         if (isNoResultClassExist.length > 0) return '검색 결과 없음';
 
         const nextDataScript = await driver.findElement(By.id('__NEXT_DATA__'));
+        const productTotalEl = await driver.findElement(By.className('subFilter_num__S9sle'));
+        const productTotal = await productTotalEl.getText();
         const nextDataContent = await nextDataScript.getAttribute('textContent');
 
         if (nextDataContent) {
@@ -136,7 +138,7 @@ const getKeywordShoppingRate = async (searchValue, productTitle) => {
             }
         }
 
-        return responseRate;
+        return {responseRate, productTotal};
     } catch (e) {
         return e.message;
     } finally {
@@ -145,7 +147,6 @@ const getKeywordShoppingRate = async (searchValue, productTitle) => {
 }
 
 app.post('/mada/api/v1/getkeyword', async function (req, res) {
-    console.log(req.body);
     getKeywords(req.body).then(response =>
         res.send({response}))
         .catch((err) => {
@@ -184,42 +185,25 @@ const getKeywords = async ({mallProductUrl, productTitle}) => {
             }
         };
 
-        // 네이버 검색API clientId 를 일단 내 계정으로 만들었는데 앞단에서 요청할 일은 없을거 같으니까
-        // 너 아이디로 네이버개발자 드가서 만들어야 할듯
-        const searchOptions = {
-            headers: {
-                'X-Naver-Client-Id'    : clientId,
-                'X-Naver-Client-Secret': clientSecret,
-            }
-        };
-
         // 5개 이하만 호출되서 걍 5개만 보게하려고 해놈
         // const keywordLength = (keywordArray.length > 5) ? 5 : keywordArray.length;
         const keywordLength = (keywordArray.length > 5) ? 5 : keywordArray.length;
         for (let i = 0; i < keywordLength; i++) {
             const keywordUrl = `https://api.naver.com/keywordstool?hintKeywords=${encodeURI(keywordArray[i])}&showDetail=1`
-            const searchUrl = `https://openapi.naver.com/v1/search/shop.json?query=${encodeURI(keywordArray[i])}&display=1`
 
-            await axios.get(keywordUrl, keywordOptions).then(async response => {
-                const keyword = response.data.keywordList.filter(keywordData => keywordData.relKeyword === keywordArray[i])
-                const resultKeyword = keyword[0];
+            const keywordResponse = await axios.get(keywordUrl, keywordOptions);
+            const keyword = keywordResponse.data.keywordList.filter(keywordData => keywordData.relKeyword === keywordArray[i])[0];
+            // 10 이하일 때 텍스트로 나오는 경우 있어서 강제로 10 넣음.
+            if (typeof keyword['monthlyPcQcCnt'] !== "number") keyword['monthlyPcQcCnt'] = 10;
+            if (typeof keyword['monthlyMobileQcCnt'] !== "number") keyword['monthlyMobileQcCnt'] = 10;
 
-                // 키워드에 등록된 총 상품수 가져오기
-                await axios.get(searchUrl, searchOptions).then(res => resultKeyword['total'] = res.data.total);
-
-                // 10 이하일 때 텍스트로 나오는 경우 있어서 강제로 10 넣음. 다른경우는 없는지 확인해봐야할듯 ?
-                if (typeof resultKeyword['monthlyPcQcCnt'] !== "number") resultKeyword['monthlyPcQcCnt'] = 10;
-                if (typeof resultKeyword['monthlyMobileQcCnt'] !== "number") resultKeyword['monthlyMobileQcCnt'] = 10;
-
-                // 총 검색수
-                resultKeyword['clkCntSum'] = resultKeyword['monthlyMobileQcCnt'] + resultKeyword['monthlyPcQcCnt'];
-                // 경쟁강도 계산 용도
-                resultKeyword['compIdx'] = (resultKeyword['total'] / resultKeyword['clkCntSum']) * 0.01;
-                resultKeyword['keywordRate'] = await getKeywordShoppingRate(keywordArray[i], productTitle);
-                resultArr.push(resultKeyword);
-            });
+            // 총 검색수
+            keyword['clkCntSum'] = keyword['monthlyMobileQcCnt'] + keyword['monthlyPcQcCnt'];
+            const {responseRate, productTotal} = await getKeywordShoppingRate(keywordArray[i], productTitle);
+            keyword['keywordRate'] = responseRate;
+            keyword['total'] = productTotal;
+            resultArr.push(keyword);
         }
-        await driver.quit();
 
         return {
             returnCode: 1,
@@ -227,11 +211,14 @@ const getKeywords = async ({mallProductUrl, productTitle}) => {
             returnMsg : '키워드가 정상적으로 조회되었습니다.'
         }
     } catch (e) {
+        console.log(e.message);
         return {
             returnCode: -1,
             data      : [],
             returnMsg : 'Naver 키워드 서비스가 정상적이지 않습니다.\n잠시 후에 이용 부탁드리겠습니다.'
         }
+    } finally {
+        await driver.quit();
     }
 }
 
@@ -304,6 +291,7 @@ const getReviewArr = async (reviewCount, merchantNo, originProductNo) => {
             returnMsg : productOptionContentDisplay ? '리뷰가 정상적으로 조회되었습니다.' : '리뷰 옵션이 보이지 않는 상품입니다.'
         }
     } catch (e) {
+        console.log(e.message);
         return {
             returnCode: -1,
             data      : [],
@@ -328,5 +316,5 @@ const getReview = async ({mallProductUrl, reviewCount, originalMallProductId}) =
     //
     await driver.quit();
 
-    return await getReviewArr(Math.ceil(reviewCount / 20), merchantNo, originalMallProductId);
+    return await getReviewArr(Math.ceil(reviewCount / 10), merchantNo, originalMallProductId);
 }
