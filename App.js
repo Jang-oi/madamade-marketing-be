@@ -5,7 +5,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 // 크롤링 
-const {Builder, By} = require('selenium-webdriver');
+const {Builder, By, until, Key} = require('selenium-webdriver');
 const chrome = require('selenium-webdriver/chrome');
 
 // 키워드
@@ -36,7 +36,7 @@ const chromeOpen = async (url) => {
     chromeOptions.addArguments("--proxy-server='direct://'")
     chromeOptions.addArguments("--proxy-bypass-list=*")
     chromeOptions.addArguments("--start-maximized")
-    chromeOptions.addArguments('--headless')
+    // chromeOptions.addArguments('--headless')
     chromeOptions.addArguments('--disable-gpu')
     chromeOptions.addArguments('--disable-dev-shm-usage')
     chromeOptions.addArguments('--no-sandbox')
@@ -298,7 +298,6 @@ const getReviewArr = async (reviewCount, merchantNo, originProductNo) => {
             returnMsg : 'Naver 리뷰 서비스가 정상적이지 않습니다.\n잠시 후에 이용 부탁드리겠습니다.'
         }
     }
-
 }
 
 /**
@@ -306,15 +305,60 @@ const getReviewArr = async (reviewCount, merchantNo, originProductNo) => {
  * @param url
  * @returns {Promise<{returnCode: number, returnMsg: string, data: *[]}>}
  */
-const getReview = async ({mallProductUrl, reviewCount, originalMallProductId}) => {
+const getReview = async ({mallProductUrl}) => {
     const driver = await chromeOpen(mallProductUrl);
     // __PRELOADED_STATE__ 를 window 객체에 넣고 그 안에 상품에 대한 정보를 담고 있음.
     // const originProductNo = await driver.executeScript(`return __PRELOADED_STATE__.product.A.productNo`);
     // originalMallProductId
-    const merchantNo = await driver.executeScript(`return __PRELOADED_STATE__.product.A.channel.naverPaySellerNo`);
-    // const reviewCount = await driver.executeScript(`return __PRELOADED_STATE__.product.A.reviewAmount.totalReviewCount`);
-    //
-    await driver.quit();
+    try {
+        await driver.sleep(500);
+        const aTagElement = await driver.findElement(By.css('a[href="#REVIEW"]'));
+        await aTagElement.click();
 
-    return await getReviewArr(Math.ceil(reviewCount / 10), merchantNo, originalMallProductId);
+        await driver.sleep(500);
+        const returnArrMap = new Map();
+        while(true) {
+            // _3HKlxxt8Ii 클래스를 찾아 크롤링 진행
+            const nextButtonElement = await driver.findElement(By.className('_2Ar8-aEUTq'));
+            const ariaHiddenValue = await nextButtonElement.getAttribute('aria-hidden');
+            if (ariaHiddenValue === 'true') break;
+            const reviewTableElements = await driver.findElements(By.className('_3i1mVq_JBd'));
+            // reviewTableElements 활용하여 크롤링 로직을 진행합니다.
+            for (const reviewElement of reviewTableElements) {
+                const reviewCount = await reviewElement.findElement(By.tagName('em')).getText();
+                const optionText = await reviewElement.findElement(By.className('_2FXNMst_ak')).getText();
+
+                const optionKey = optionText.split('\n')[0];
+                if (returnArrMap.has(optionKey)) {
+                    const item = returnArrMap.get(optionKey);
+                    item.cnt++;
+                    item.reviewCount += Number(reviewCount);
+                } else {
+                    returnArrMap.set(optionKey, {
+                        optionKey,
+                        reviewCount : Number(reviewCount),
+                        cnt: 1,
+                    });
+                }
+            }
+            await nextButtonElement.click();
+            await driver.sleep(500);
+        }
+
+        return {
+            returnCode: 1,
+            data      : Array.from(returnArrMap.values()).sort((a, b) => b.cnt - a.cnt),
+            returnMsg : '리뷰가 정상적으로 조회되었습니다.'
+        }
+    } catch (e) {
+        console.log(e.message);
+        return {
+            returnCode: -1,
+            data      : [],
+            returnMsg : 'Naver 리뷰 서비스가 정상적이지 않습니다.\n잠시 후에 이용 부탁드리겠습니다.'
+        }
+    } finally {
+        await driver.quit();
+    }
+
 }
