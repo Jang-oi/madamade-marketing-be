@@ -7,7 +7,8 @@ app.use(express.json());
 // 크롤링 
 const {Builder, By, until, Key} = require('selenium-webdriver');
 const chrome = require('selenium-webdriver/chrome');
-
+const puppeteer = require('puppeteer');
+const cheerio = require('cheerio');
 // 키워드
 const CryptoJS = require('crypto-js');
 const accessKey = "0100000000138bb119fcc9beff61b42d84302bec7765ec74f10c27be2c9a6337a4a2f8abbc";
@@ -227,7 +228,7 @@ const getKeywords = async ({mallProductUrl, productTitle}) => {
  */
 
 app.post('/mada/api/v1/getreview', (req, res) => {
-    getReview(req.body).then(response =>
+    crawlReviews(req.body).then(response =>
         res.send({response}))
         .catch((err) => {
             res.send({
@@ -300,6 +301,157 @@ const getReviewArr = async (reviewCount, merchantNo, originProductNo) => {
     }
 }
 
+
+async function crawlReviews({mallProductUrl}) {
+    const browser = await puppeteer.launch({
+        headless: false,
+    });
+    const page = await browser.newPage();
+    await page.setViewport({width: 1920, height: 1080});
+    try {
+        const returnArrMap = new Map();
+        await page.goto(mallProductUrl);
+        await page.waitForNavigation();
+
+        await page.click('a[href="#REVIEW"]');
+        const abc = [];
+        while (true) {
+            await new Promise((page) => setTimeout(page, 100));
+            await page.waitForSelector('._2Ar8-aEUTq');
+            const ariaHiddenValue = await page.$eval('._2Ar8-aEUTq', (nextButtonElement) => {
+                return nextButtonElement ? nextButtonElement.getAttribute('aria-hidden') : null;
+            });
+            if (ariaHiddenValue === 'true') break;
+            await page.waitForSelector('._3i1mVq_JBd');
+            abc.push(...await page.$$eval('._3i1mVq_JBd', (reviewElements) => {
+                const result = [];
+                for (let i = 0; i < reviewElements.length; i++) {
+                    const emElement = reviewElements[i].querySelector('em');
+                    const reviewCount = emElement ? emElement.textContent : 0;
+                    const optionElement = reviewElements[i].querySelector('._2FXNMst_ak');
+                    const optionText = optionElement ? optionElement.innerText.split('\n')[0] : '옵션없음';
+                    result.push({reviewCount, optionText});
+                }
+                return result;
+            }));
+            await page.waitForSelector('._2Ar8-aEUTq');
+            await page.click('._2Ar8-aEUTq');
+
+        }
+
+        console.log(abc);
+        // const optionText = await reviewElement.findElement(By.className('_2FXNMst_ak')).getText();
+
+        // console.log(aTagElement);
+        // const element = await page.waitForSelector('._3i1mVq_JBd');
+
+        /*        while (true) {
+                    // _3HKlxxt8Ii 클래스를 찾아 크롤링 진행
+                    const nextButtonElement = await driver.findElement(By.className('_2Ar8-aEUTq'));
+                    const ariaHiddenValue = await nextButtonElement.getAttribute('aria-hidden');
+                    if (ariaHiddenValue === 'true') break;
+                    const reviewTableElements = await driver.findElements(By.className('_3i1mVq_JBd'));
+                    // reviewTableElements 활용하여 크롤링 로직을 진행합니다.
+                    for (const reviewElement of reviewTableElements) {
+                        const reviewCount = await reviewElement.findElement(By.tagName('em')).getText();
+                        const optionText = await reviewElement.findElement(By.className('_2FXNMst_ak')).getText();
+
+                        const optionKey = optionText.split('\n')[0];
+                        if (returnArrMap.has(optionKey)) {
+                            const item = returnArrMap.get(optionKey);
+                            item.cnt++;
+                            item.reviewCount += Number(reviewCount);
+                        } else {
+                            returnArrMap.set(optionKey, {
+                                optionKey,
+                                reviewCount: Number(reviewCount),
+                                cnt        : 1,
+                            });
+                        }
+                    }
+                    await nextButtonElement.click();
+                    await driver.sleep(500);
+                }*/
+        /*    await driver.sleep(500);
+            const aTagElement = await driver.findElement(By.css('a[href="#REVIEW"]'));
+            await aTagElement.click();
+
+            await driver.sleep(500);
+            const returnArrMap = new Map();
+            while (true) {
+                // _3HKlxxt8Ii 클래스를 찾아 크롤링 진행
+                const nextButtonElement = await driver.findElement(By.className('_2Ar8-aEUTq'));
+                const ariaHiddenValue = await nextButtonElement.getAttribute('aria-hidden');
+                if (ariaHiddenValue === 'true') break;
+                const reviewTableElements = await driver.findElements(By.className('_3i1mVq_JBd'));
+                // reviewTableElements 활용하여 크롤링 로직을 진행합니다.
+                for (const reviewElement of reviewTableElements) {
+                    const reviewCount = await reviewElement.findElement(By.tagName('em')).getText();
+                    const optionText = await reviewElement.findElement(By.className('_2FXNMst_ak')).getText();
+
+                    const optionKey = optionText.split('\n')[0];
+                    if (returnArrMap.has(optionKey)) {
+                        const item = returnArrMap.get(optionKey);
+                        item.cnt++;
+                        item.reviewCount += Number(reviewCount);
+                    } else {
+                        returnArrMap.set(optionKey, {
+                            optionKey,
+                            reviewCount: Number(reviewCount),
+                            cnt        : 1,
+                        });
+                    }
+                }
+                await nextButtonElement.click();
+                await driver.sleep(500);
+            }*/
+        /*        while (true) {
+                    const nextButtonElement = await page.$('button._2Ar8-aEUTq');
+                    const ariaHiddenValue = await page.evaluate(el => el.getAttribute('aria-hidden'), nextButtonElement);
+
+                    if (ariaHiddenValue === 'true') break;
+
+                    const reviewTableElements = await page.$$('div._3i1mVq_JBd');
+
+                    for (const reviewElement of reviewTableElements) {
+                        const reviewCount = await reviewElement.$eval('em', el => el.textContent);
+                        const optionText = await reviewElement.$eval('div._2FXNMst_ak', el => el.textContent);
+
+                        const optionKey = optionText.split('\n')[0];
+
+                        if (returnArrMap.has(optionKey)) {
+                            const item = returnArrMap.get(optionKey);
+                            item.cnt++;
+                            item.reviewCount += Number(reviewCount);
+                        } else {
+                            returnArrMap.set(optionKey, {
+                                optionKey,
+                                reviewCount: Number(reviewCount),
+                                cnt        : 1,
+                            });
+                        }
+                    }
+
+                    await nextButtonElement.click();
+                }*/
+
+        return {
+            returnCode: 1,
+            data      : Array.from(returnArrMap.values()).sort((a, b) => b.cnt - a.cnt),
+            returnMsg : '리뷰가 정상적으로 조회되었습니다.',
+        };
+    } catch (e) {
+        console.log(e.message);
+        return {
+            returnCode: -1,
+            data      : [],
+            returnMsg : 'Naver 리뷰 서비스가 정상적이지 않습니다.\n잠시 후에 이용 부탁드리겠습니다.',
+        };
+    } finally {
+        await browser.close();
+    }
+}
+
 /**
  * naver 쇼핑 사이트 접속하여 리뷰 크롤링
  * @param url
@@ -317,7 +469,7 @@ const getReview = async ({mallProductUrl}) => {
 
         await driver.sleep(500);
         const returnArrMap = new Map();
-        while(true) {
+        while (true) {
             // _3HKlxxt8Ii 클래스를 찾아 크롤링 진행
             const nextButtonElement = await driver.findElement(By.className('_2Ar8-aEUTq'));
             const ariaHiddenValue = await nextButtonElement.getAttribute('aria-hidden');
@@ -336,8 +488,8 @@ const getReview = async ({mallProductUrl}) => {
                 } else {
                     returnArrMap.set(optionKey, {
                         optionKey,
-                        reviewCount : Number(reviewCount),
-                        cnt: 1,
+                        reviewCount: Number(reviewCount),
+                        cnt        : 1,
                     });
                 }
             }
@@ -360,5 +512,4 @@ const getReview = async ({mallProductUrl}) => {
     } finally {
         await driver.quit();
     }
-
 }
