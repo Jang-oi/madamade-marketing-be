@@ -222,11 +222,6 @@ const getKeywords = async ({mallProductUrl, productTitle}) => {
         await driver.quit();
     }
 }
-
-/**
- * 등록일자 가져옴.
- */
-
 app.post('/mada/api/v1/getreview', (req, res) => {
     crawlReviews(req.body).then(response =>
         res.send({response}))
