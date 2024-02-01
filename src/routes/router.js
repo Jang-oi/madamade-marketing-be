@@ -4,10 +4,9 @@ import keyword from "../controller/keyword/keywordController.js";
 import review from "../controller/review/reviewController.js";
 
 const router = express.Router();
-const BASE_URL = '/mada/api/v1';
 
-router.post(`${BASE_URL}/getShoppingList`, shopping.getShoppingList);
-router.post(`${BASE_URL}/getKeyword`, keyword.getKeyword);
-router.post(`${BASE_URL}/getReview`, review.getReview);
+router.post(`/getShoppingList`, shopping.getShoppingList);
+router.post(`/getKeyword`, keyword.getKeyword);
+router.post(`/getReview`, review.getReview);
 
 export default router;
