@@ -2,6 +2,7 @@ import express from "express";
 import cors from 'cors';
 import path from 'path';
 import router from './src/routes/router.js'
+
 const app = express();
 const __dirname = path.resolve();
 
