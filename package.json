@@ -23,10 +23,10 @@
     "electron-builder": "^24.9.1"
   },
   "author": {
-    "name": "Tistory Blogger"
+    "name": "Seller-Supporter ManageMent"
   },
   "build": {
-    "productName": "builder-test",
+    "productName": "Seller-Supporter",
     "files": [
       "build/**/*",
       "src/**/*",
@@ -39,9 +39,9 @@
     },
     "nsis": {
       "oneClick": true,
-      "shortcutName": "Builder 테스트 프로그램",
-      "artifactName": "Builder 테스트 프로그램 ${version}.${ext}",
-      "uninstallDisplayName": "Builder 테스트 프로그램"
+      "shortcutName": "Seller-Supporter",
+      "artifactName": "Seller-Supporter ${version}.${ext}",
+      "uninstallDisplayName": "Seller-Supporter"
     }
   }
 }
