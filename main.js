@@ -1,40 +1,61 @@
-import {createRequire} from 'module';
+import expressApp from './App.js';
 
-const require = createRequire(import.meta.url);
 import path from 'path';
-import url from 'url';
-
 const __dirname = path.resolve();
 
-const {app, Tray, Menu, BrowserWindow} = require('electron/main')
+import {createRequire} from 'module';
+const require = createRequire(import.meta.url);
+const {app, Tray, Menu, BrowserWindow} = require('electron/main');
 
 let mainWindow;
 let tray
 
-async function createWindow() {
-    mainWindow = new BrowserWindow({
-        width         : 800,
-        height        : 600,
-        webPreferences: {
-            nodeIntegration: true,
-        },
-        resizable: true,
+const browserOption = {
+    width          : 1720,
+    height         : 860,
+    minWidth       : 1440,
+    minHeight      : 600,
+    webPreferences : {
+        nodeIntegration: true,
+    },
+    resizable      : true,
+    autoHideMenuBar: true,
+    show           : false,
+    y              : 0,
+    x              : 0,
+    title : 'S'
+}
+
+const createWindow = async () => {
+    mainWindow = new BrowserWindow(browserOption);
+    expressApp.listen(3001, () => {
+        console.log('Server Start...');
     });
-
-    // await mainWindow.loadFile(path.join(__dirname, 'build', 'index.html'));
-    await mainWindow.loadURL("http://localhost:3000/");
-
+    await mainWindow.loadURL("http://localhost:3001/");
+    // mainWindow.webContents.openDevTools();
     mainWindow.on('closed', function () {
         mainWindow = null;
+    });
+
+    mainWindow.once('ready-to-show', () => {
+        mainWindow.show();
     });
 }
 
 function createTray() {
-    tray = new Tray(`${__dirname}/src/assets/images/Autumn.jpg`);
+    tray = new Tray(`${__dirname}/resources/app/src/assets/images/Autumn.jpg`);
 
     const contextMenu = Menu.buildFromTemplate([
         {
-            label: 'Open',
+            label: 'Help',
+            click: async () => {
+                const manualWindow = new BrowserWindow(browserOption);
+                await manualWindow.loadURL('https://thoracic-spring-58d.notion.site/29bb6d7c62584007ad8fa895f5e89973?pvs=4');
+                manualWindow.show();
+            },
+        },
+        {
+            label: 'Start',
             click: () => {
                 mainWindow.show();
             },
@@ -48,7 +69,7 @@ function createTray() {
         },
     ]);
 
-    tray.setToolTip('Your App Name');
+    tray.setToolTip('Seller Supporter');
     tray.setContextMenu(contextMenu);
 
     tray.on('click', () => {
@@ -63,22 +84,6 @@ function createTray() {
     });
 }
 
-/*
-app.whenReady().then(() => {
-
-
-    const contextMenu = Menu.buildFromTemplate([
-        {label: '시작', click : () => {
-            console.log('시작')
-            }},
-        {label: '중지',},
-        {label: '종료', click : app.quit},
-    ])
-
-    tray.setToolTip('This is my application.')
-    tray.setContextMenu(contextMenu)
-})
-*/
 app.on('ready', () => {
     createWindow();
     createTray();
@@ -88,6 +93,9 @@ app.on('window-all-closed', function () {
     if (process.platform !== 'darwin') app.quit();
 });
 
+// macOS 때문에 있음.
 app.on('activate', function () {
-    if (mainWindow === null) createWindow();
+    if (mainWindow === null) {
+        createWindow();
+    }
 });

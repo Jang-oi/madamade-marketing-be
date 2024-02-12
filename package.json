@@ -7,17 +7,41 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node App.js",
-    "electronStart": "electron main.js"
+    "build:win-ia32": "electron-builder --win --ia32",
+    "build:win-x64": "electron-builder --win --x64"
   },
-  "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
-    "axios": "^0.27.2",
-    "concurrently": "^8.2.2",
+    "axios": "^1.6.7",
     "cors": "^2.8.5",
     "crypto-js": "^4.1.1",
-    "electron": "^28.2.1",
     "express": "^4.18.1",
     "puppeteer": "^21.7.0"
+  },
+  "devDependencies": {
+    "electron": "^28.2.2",
+    "electron-builder": "^24.9.1"
+  },
+  "author": {
+    "name": "Tistory Blogger"
+  },
+  "build": {
+    "productName": "builder-test",
+    "files": [
+      "build/**/*",
+      "src/**/*",
+      "main.js",
+      "App.js"
+    ],
+    "asar": false,
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": true,
+      "shortcutName": "Builder 테스트 프로그램",
+      "artifactName": "Builder 테스트 프로그램 ${version}.${ext}",
+      "uninstallDisplayName": "Builder 테스트 프로그램"
+    }
   }
 }
