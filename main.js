@@ -32,7 +32,6 @@ const createWindow = async () => {
         console.log('Server Start...');
     });
     await mainWindow.loadURL("http://localhost:3001/");
-    mainWindow.webContents.openDevTools();
     mainWindow.on('closed', function () {
         mainWindow = null;
     });

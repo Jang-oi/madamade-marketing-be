@@ -9,24 +9,14 @@ const puppeteer = require("puppeteer");
  * @returns {Promise<*>}
  */
 export const chromeOpen = async (url) => {
-    const browser = await puppeteer.launch({headless: 'new'});
+    const browser = await puppeteer.launch({
+        headless      : 'new',
+        executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+    });
     const page = await browser.newPage();
     await page.setViewport({width: 1920, height: 1080});
     await page.setExtraHTTPHeaders(headerOptions);
     await page.goto(url);
-    // await page.type('.devsite-search-field', 'automate beyond recorder');
-/*    await page.setRequestInterception(true);
-
-    page.on('request', (req) => {
-        if (req.resourceType() === 'image' ||
-            req.resourceType() === 'font' ||
-            req.resourceType() === 'stylesheet') {
-
-            req.abort(); // 거부
-        } else {
-            req.continue(); // 수락
-        }
-    });*/
 
     return {browser, page};
 }
