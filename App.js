@@ -1,17 +1,17 @@
 import express from "express";
 import cors from 'cors';
-import path from 'path';
 import router from './src/routes/router.js'
+import {defaultPath} from "./src/utils/common.js";
 
 const app = express();
-const __dirname = path.resolve();
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'resources/app/build')));
+
+app.use(express.static(`${defaultPath}/build`));
 
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'resources/app/build', 'index.html'));
+    res.sendFile(`${defaultPath}/build/index.html`);
 });
 app.use('/mada/api/v1', router);
 

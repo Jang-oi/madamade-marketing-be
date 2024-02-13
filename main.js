@@ -1,9 +1,8 @@
 import expressApp from './App.js';
-
-import path from 'path';
-const __dirname = path.resolve();
+import fs from "fs";
 
 import {createRequire} from 'module';
+import {defaultPath, notepadOpen} from "./src/utils/common.js";
 const require = createRequire(import.meta.url);
 const {app, Tray, Menu, BrowserWindow} = require('electron/main');
 
@@ -26,12 +25,25 @@ const browserOption = {
     title : 'S'
 }
 
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+    app.quit();
+    app.exit();
+} else {
+    app.on('second-instance', () => {
+        if (mainWindow) {
+            if (mainWindow.isMinimized() || !mainWindow.isVisible()) mainWindow.show();
+            mainWindow.focus();
+        }
+    });
+}
+
 const createWindow = async () => {
     mainWindow = new BrowserWindow(browserOption);
-    expressApp.listen(3001, () => {
-        console.log('Server Start...');
-    });
-    await mainWindow.loadURL("http://localhost:3001/");
+    expressApp.listen(3001);
+
+    await mainWindow.loadURL("http://localhost:3001/license");
     mainWindow.on('closed', function () {
         mainWindow = null;
     });
@@ -41,12 +53,12 @@ const createWindow = async () => {
     });
 }
 
-function createTray() {
-    tray = new Tray(`${__dirname}/resources/app/src/assets/images/Autumn.jpg`);
+const createTray = () => {
+    tray = new Tray(`${defaultPath}/src/assets/images/Autumn.jpg`);
 
     const contextMenu = Menu.buildFromTemplate([
         {
-            label: 'Help',
+            label: '도움말',
             click: async () => {
                 const manualWindow = new BrowserWindow(browserOption);
                 await manualWindow.loadURL('https://thoracic-spring-58d.notion.site/29bb6d7c62584007ad8fa895f5e89973?pvs=4');
@@ -54,13 +66,29 @@ function createTray() {
             },
         },
         {
-            label: 'Start',
+            label: '크롬경로입력',
             click: () => {
-                mainWindow.show();
+                const filePath = `${defaultPath}/chrome.txt`;
+                fs.access(filePath, fs.constants.F_OK, (err) => {
+                    if (err) {
+                        fs.writeFile(filePath, '', () => {
+                            notepadOpen(filePath);
+                        });
+                    } else {
+                        notepadOpen(filePath);
+                    }
+                });
             },
         },
         {
-            label: 'Quit',
+            label: '재시작',
+            click: () => {
+                app.exit();
+                app.relaunch();
+            },
+        },
+        {
+            label: '종료',
             click: () => {
                 app.isQuiting = true;
                 app.quit();
@@ -90,11 +118,4 @@ app.on('ready', () => {
 
 app.on('window-all-closed', function () {
     if (process.platform !== 'darwin') app.quit();
-});
-
-// macOS 때문에 있음.
-app.on('activate', function () {
-    if (mainWindow === null) {
-        createWindow();
-    }
 });
