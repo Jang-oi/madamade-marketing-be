@@ -49,13 +49,12 @@ if (!gotTheLock) {
 }
 
 const createFile = (filePath) => {
-    try {
-        fs.access(filePath, fs.constants.F_OK, () => {
-        });
-    } catch (err) {
-        fs.writeFile(filePath, '', () => {
-        });
-    }
+    fs.access(filePath, fs.constants.F_OK, (err) => {
+        if (err) {
+            // 파일이 없는 경우
+            fs.writeFile(filePath, '', (writeErr) => {});
+        }
+    });
 }
 
 const licenseValidate = async () => {
@@ -104,7 +103,7 @@ const createWindow = async () => {
 }
 
 const createTray = () => {
-    tray = new Tray(`${defaultPath}/src/assets/images/Autumn.jpg`);
+    tray = new Tray(`${defaultPath}/src/assets/images/logo.png`);
 
     const contextMenu = Menu.buildFromTemplate([
         {
@@ -159,9 +158,9 @@ const createTray = () => {
 }
 
 app.on('ready', () => {
-    createWindow();
     createFile(chromePath);
     createFile(licensePath);
+    createWindow();
     createTray();
 });
 
