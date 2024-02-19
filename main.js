@@ -1,10 +1,19 @@
 import expressApp from './App.js';
 import fs from "fs";
-
 import {createRequire} from 'module';
-import {defaultPath, notepadOpen} from "./src/utils/common.js";
+import {
+    defaultPath,
+    notepadOpen,
+    chromePath,
+    licensePath,
+    isDev,
+    getNumberKoreanDate
+} from "./src/utils/common.js";
+
 const require = createRequire(import.meta.url);
 const {app, Tray, Menu, BrowserWindow} = require('electron/main');
+const electronLocalShortcut = require('electron-localshortcut');
+const CryptoJS = require("crypto-js");
 
 let mainWindow;
 let tray
@@ -22,7 +31,7 @@ const browserOption = {
     show           : false,
     y              : 0,
     x              : 0,
-    title : 'S'
+    title          : 'S'
 }
 
 const gotTheLock = app.requestSingleInstanceLock();
@@ -39,17 +48,58 @@ if (!gotTheLock) {
     });
 }
 
+const createFile = (filePath) => {
+    try {
+        fs.access(filePath, fs.constants.F_OK, () => {
+        });
+    } catch (err) {
+        fs.writeFile(filePath, '', () => {
+        });
+    }
+}
+
+const licenseValidate = async () => {
+    try {
+        const koreaDateNumber = await getNumberKoreanDate();
+        const licenseKey = fs.readFileSync(licensePath, 'utf-8');
+        const bytes  = CryptoJS.AES.decrypt(licenseKey, process.env.ENCRYPTION_KEY);
+        const licenseDateNumber = bytes.toString(CryptoJS.enc.Utf8);
+
+        return koreaDateNumber > licenseDateNumber;
+
+    } catch (e) {
+        return true;
+    }
+}
+
 const createWindow = async () => {
     mainWindow = new BrowserWindow(browserOption);
     expressApp.listen(3001);
-
-    await mainWindow.loadURL("http://localhost:3001/license");
+    // mainWindow.webContents.openDevTools({mode: 'detach'});
+    if (isDev) {
+        if (await licenseValidate()) {
+            await mainWindow.loadURL(`file://${defaultPath}/build/index.html#/license`);
+        } else {
+            await mainWindow.loadFile(`${defaultPath}/build/index.html`);
+            mainWindow.webContents.openDevTools({mode: 'detach'});
+        }
+    } else {
+        if (await licenseValidate()) {
+            await mainWindow.loadURL(`file://${defaultPath}/build/index.html#/license`);
+        } else {
+            await mainWindow.loadFile(`${defaultPath}/build/index.html`);
+        }
+    }
     mainWindow.on('closed', function () {
         mainWindow = null;
     });
 
     mainWindow.once('ready-to-show', () => {
         mainWindow.show();
+        electronLocalShortcut.register(mainWindow, 'F5', () => {
+            // mainWindow.webContents.reloadIgnoringCache();
+            mainWindow.reload();
+        });
     });
 }
 
@@ -68,16 +118,13 @@ const createTray = () => {
         {
             label: '크롬경로입력',
             click: () => {
-                const filePath = `${defaultPath}/chrome.txt`;
-                fs.access(filePath, fs.constants.F_OK, (err) => {
-                    if (err) {
-                        fs.writeFile(filePath, '', () => {
-                            notepadOpen(filePath);
-                        });
-                    } else {
-                        notepadOpen(filePath);
-                    }
-                });
+                notepadOpen(chromePath);
+            },
+        },
+        {
+            label: '라이센스입력',
+            click: () => {
+                notepadOpen(licensePath);
             },
         },
         {
@@ -113,6 +160,8 @@ const createTray = () => {
 
 app.on('ready', () => {
     createWindow();
+    createFile(chromePath);
+    createFile(licensePath);
     createTray();
 });
 

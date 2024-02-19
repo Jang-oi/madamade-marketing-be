@@ -6,16 +6,17 @@
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "cross-env NODE_ENV=development electron main.js",
-    "build:win-ia32": "cross-env NODE_ENV=production electron-builder --win --ia32",
-    "build:win-x64": "cross-env NODE_ENV=production electron-builder --win --x64"
+    "start": "cross-env NODE_ENV=development ENCRYPTION_KEY=1234abcd5678efgh electron main.js",
+    "build:win-ia32": "cross-env NODE_ENV=production ENCRYPTION_KEY=1234abcd5678efgh electron-builder --win --ia32",
+    "build:win-x64": "cross-env NODE_ENV=production ENCRYPTION_KEY=1234abcd5678efgh electron-builder --win --x64"
   },
   "license": "MIT",
   "dependencies": {
     "axios": "^1.6.7",
     "cors": "^2.8.5",
     "cross-env": "^7.0.3",
-    "crypto-js": "^4.1.1",
+    "crypto-js": "^4.2.0",
+    "electron-localshortcut": "^3.2.1",
     "express": "^4.18.1",
     "puppeteer": "^21.7.0"
   },
@@ -34,7 +35,7 @@
       "main.js",
       "App.js"
     ],
-    "asar": false,
+    "asar": true,
     "win": {
       "target": "nsis"
     },

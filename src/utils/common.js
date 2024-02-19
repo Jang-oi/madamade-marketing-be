@@ -1,26 +1,29 @@
 import {createRequire} from 'module';
 import fs from "fs";
 import path from "path";
+import axios from "axios";
 
 const require = createRequire(import.meta.url);
 const __dirname = path.resolve();
 const puppeteer = require("puppeteer");
 const { exec } = require('child_process');
 
+export const isDev = process.env.NODE_ENV === 'development';
+export const defaultPath = isDev ? `${__dirname}` : `${__dirname}/resources/app`;
 
-export const defaultPath = (process.env.NODE_ENV === 'development') ? `${__dirname}` : `${__dirname}/resources/app`;
-
+export const chromePath = `${defaultPath}/chrome.txt`;
+export const licensePath = `${defaultPath}/license.txt`;
 /**
  * url을 받아서 크롤링을위해 크롬 오픈하는 함수
  * @param url
  * @returns {Promise<*>}
  */
 export const chromeOpen = async (url) => {
-    const executablePath = fs.readFileSync(`${defaultPath}/chrome.txt`, 'utf-8');
-    console.log(executablePath);
+    const executablePath = fs.readFileSync(chromePath, 'utf-8') || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+
     const browser = await puppeteer.launch({
         headless: 'new',
-        executablePath : executablePath || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+        executablePath
     });
     const page = await browser.newPage();
     await page.setViewport({width: 1920, height: 1080});
@@ -32,6 +35,11 @@ export const chromeOpen = async (url) => {
 
 export const notepadOpen = (filePath) => {
     exec(`notepad.exe ${filePath}`);
+}
+
+export const getNumberKoreanDate = async () => {
+    const response = await axios.get(' https://worldtimeapi.org/api/timezone/Asia/Seoul');
+    return Number(response.data.datetime.split('T')[0].replace(/-/g, ''));
 }
 
 export const headerOptions = {
