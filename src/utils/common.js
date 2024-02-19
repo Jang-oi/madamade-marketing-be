@@ -38,7 +38,7 @@ export const notepadOpen = (filePath) => {
 }
 
 export const getNumberKoreanDate = async () => {
-    const response = await axios.get(' https://worldtimeapi.org/api/timezone/Asia/Seoul');
+    const response = await axios.get('https://worldtimeapi.org/api/timezone/Asia/Seoul');
     return Number(response.data.datetime.split('T')[0].replace(/-/g, ''));
 }
 

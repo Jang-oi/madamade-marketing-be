@@ -1,19 +1,19 @@
 import expressApp from './App.js';
 import fs from "fs";
+import CryptoJS from "crypto-js";
 import {createRequire} from 'module';
 import {
     defaultPath,
     notepadOpen,
     chromePath,
     licensePath,
-    isDev,
-    getNumberKoreanDate
+    isDev
 } from "./src/utils/common.js";
+
 
 const require = createRequire(import.meta.url);
 const {app, Tray, Menu, BrowserWindow} = require('electron/main');
 const electronLocalShortcut = require('electron-localshortcut');
-const CryptoJS = require("crypto-js");
 
 let mainWindow;
 let tray
@@ -52,7 +52,8 @@ const createFile = (filePath) => {
     fs.access(filePath, fs.constants.F_OK, (err) => {
         if (err) {
             // 파일이 없는 경우
-            fs.writeFile(filePath, '', (writeErr) => {});
+            fs.writeFile(filePath, '', (writeErr) => {
+            });
         }
     });
 }
@@ -74,7 +75,6 @@ const licenseValidate = async () => {
 const createWindow = async () => {
     mainWindow = new BrowserWindow(browserOption);
     expressApp.listen(3001);
-    // mainWindow.webContents.openDevTools({mode: 'detach'});
     if (isDev) {
         if (await licenseValidate()) {
             await mainWindow.loadURL(`file://${defaultPath}/build/index.html#/license`);
@@ -85,8 +85,10 @@ const createWindow = async () => {
     } else {
         if (await licenseValidate()) {
             await mainWindow.loadURL(`file://${defaultPath}/build/index.html#/license`);
+            mainWindow.webContents.openDevTools({mode: 'detach'});
         } else {
             await mainWindow.loadFile(`${defaultPath}/build/index.html`);
+            mainWindow.webContents.openDevTools();
         }
     }
     mainWindow.on('closed', function () {
