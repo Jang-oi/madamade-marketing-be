@@ -1,6 +1,5 @@
 import expressApp from './App.js';
 import fs from "fs";
-import CryptoJS from "crypto-js";
 import {createRequire} from 'module';
 import {
     defaultPath,
@@ -15,8 +14,7 @@ const require = createRequire(import.meta.url);
 const {app, Tray, Menu, BrowserWindow} = require('electron/main');
 const electronLocalShortcut = require('electron-localshortcut');
 
-let mainWindow;
-let tray
+let mainWindow, tray;
 
 const browserOption = {
     width          : 1720,
@@ -48,6 +46,8 @@ if (!gotTheLock) {
     });
 }
 
+export let manualWindow;
+
 const createFile = (filePath) => {
     fs.access(filePath, fs.constants.F_OK, (err) => {
         if (err) {
@@ -58,38 +58,16 @@ const createFile = (filePath) => {
     });
 }
 
-const licenseValidate = async () => {
-    try {
-        const koreaDateNumber = await getNumberKoreanDate();
-        const licenseKey = fs.readFileSync(licensePath, 'utf-8');
-        const bytes  = CryptoJS.AES.decrypt(licenseKey, process.env.ENCRYPTION_KEY);
-        const licenseDateNumber = bytes.toString(CryptoJS.enc.Utf8);
-
-        return koreaDateNumber > licenseDateNumber;
-
-    } catch (e) {
-        return true;
-    }
-}
-
 const createWindow = async () => {
     mainWindow = new BrowserWindow(browserOption);
+    manualWindow = new BrowserWindow(browserOption);
+    await manualWindow.loadURL('https://thoracic-spring-58d.notion.site/29bb6d7c62584007ad8fa895f5e89973?pvs=4');
     expressApp.listen(3001);
     if (isDev) {
-        if (await licenseValidate()) {
-            await mainWindow.loadURL(`file://${defaultPath}/build/index.html#/license`);
-        } else {
-            await mainWindow.loadFile(`${defaultPath}/build/index.html`);
-            mainWindow.webContents.openDevTools({mode: 'detach'});
-        }
+        await mainWindow.loadFile(`${defaultPath}/build/index.html`);
+        mainWindow.webContents.openDevTools({mode: 'detach'});
     } else {
-        if (await licenseValidate()) {
-            await mainWindow.loadURL(`file://${defaultPath}/build/index.html#/license`);
-            mainWindow.webContents.openDevTools({mode: 'detach'});
-        } else {
-            await mainWindow.loadFile(`${defaultPath}/build/index.html`);
-            mainWindow.webContents.openDevTools();
-        }
+        await mainWindow.loadFile(`${defaultPath}/build/index.html`);
     }
     mainWindow.on('closed', function () {
         mainWindow = null;
@@ -101,6 +79,9 @@ const createWindow = async () => {
             // mainWindow.webContents.reloadIgnoringCache();
             mainWindow.reload();
         });
+        electronLocalShortcut.register(mainWindow, 'Ctrl+F12', () => {
+            mainWindow.webContents.openDevTools({mode: 'detach'});
+        });
     });
 }
 
@@ -111,8 +92,6 @@ const createTray = () => {
         {
             label: '도움말',
             click: async () => {
-                const manualWindow = new BrowserWindow(browserOption);
-                await manualWindow.loadURL('https://thoracic-spring-58d.notion.site/29bb6d7c62584007ad8fa895f5e89973?pvs=4');
                 manualWindow.show();
             },
         },
@@ -155,6 +134,13 @@ const createTray = () => {
         if (!app.isQuiting) {
             event.preventDefault();
             mainWindow.hide();
+        }
+    });
+
+    manualWindow.on('close', function (event) {
+        if (!app.isQuiting) {
+            event.preventDefault();
+            manualWindow.hide();
         }
     });
 }
