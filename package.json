@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "cross-env NODE_ENV=development electron main.js",
+    "start": "cross-env NODE_ENV=development nodemon --exec electron main.js",
     "build:win-ia32": "cross-env NODE_ENV=production electron-builder --win --ia32",
     "build": "cross-env NODE_ENV=production electron-builder --win --x64"
   },
@@ -22,7 +22,8 @@
   },
   "devDependencies": {
     "electron": "^28.2.2",
-    "electron-builder": "^24.9.1"
+    "electron-builder": "^24.9.1",
+    "nodemon": "^3.1.0"
   },
   "author": {
     "name": "Seller-Supporter ManageMent"

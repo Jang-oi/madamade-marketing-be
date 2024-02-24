@@ -68,7 +68,8 @@ export default {
 
             const keywordTagArray = chunkArray(keywordArray, 5);
             if (keywordTagArray.length === 0) return {...defaultResponseData, returnMsg: '키워드가 존재하지 않습니다.'};
-            for (let i = 0; i < 1; i++) {
+            for (let i = 0; i < keywordTagArray.length; i++) {
+                if (i === 2) break;
                 const keywordUrl = `https://api.naver.com/keywordstool?hintKeywords=${encodeURI(keywordTagArray[i])}&showDetail=1`;
                 const keywordResponse = await axios.get(keywordUrl, keywordOptions);
                 const keywords = keywordResponse.data.keywordList.filter(keywordItem => keywordTagArray[i].split(',').some(tagItem => tagItem === keywordItem.relKeyword));
