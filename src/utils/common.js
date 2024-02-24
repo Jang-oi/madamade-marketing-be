@@ -13,6 +13,8 @@ export const defaultPath = isDev ? `${__dirname}` : `${__dirname}/resources/app`
 
 export const chromePath = `${defaultPath}/chrome.txt`;
 export const licensePath = `${defaultPath}/license.txt`;
+
+export const manualLink = `https://thoracic-spring-58d.notion.site/7c5ab7ebbe874b68b94f420e82f746c0`;
 /**
  * url을 받아서 크롤링을위해 크롬 오픈하는 함수
  * @param url

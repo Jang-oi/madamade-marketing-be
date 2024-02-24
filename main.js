@@ -6,7 +6,8 @@ import {
     notepadOpen,
     chromePath,
     licensePath,
-    isDev
+    isDev,
+    manualLink
 } from "./src/utils/common.js";
 
 
@@ -61,7 +62,8 @@ const createFile = (filePath) => {
 const createWindow = async () => {
     mainWindow = new BrowserWindow(browserOption);
     manualWindow = new BrowserWindow(browserOption);
-    await manualWindow.loadURL('https://thoracic-spring-58d.notion.site/29bb6d7c62584007ad8fa895f5e89973?pvs=4');
+
+    await manualWindow.loadURL(manualLink);
     expressApp.listen(3001);
     if (isDev) {
         await mainWindow.loadFile(`${defaultPath}/build/index.html`);
